@@ -42,15 +42,16 @@ CentOS 6 は 2018 年 11 月 3 日となっており、そのままでは動作�
 
 # AMI のビルドに使用したスクリプト
 
-ドライバーシステムとなる CentOS に、インストール先 EBS ボリュームをアタッチすることでインストールできるスクリプトを作っています。
-install-centos6.sh
+'install-centos6.sh' は、CentOS 6 をインストールするスクリプトです。
+ドライバーシステムとなる CentOS 環境(インスタンス)に、インストール先となる EBS ボリュームをアタッチすることでインストールすることができます。
 ```
 ./install-centos6.sh {install_version} {boot_device}
 ./install-centos6.sh 6.0 /dev/xvdb
 ```
  - install_version : インストールする CentOS のバージョン
  - boot_device : インストール先の EBS ボリューム
- - yum_cache : インストール先の /var/cache/yum として使用される tmpfs またはデバイス
+
+実際の動作では、6.0 ~ 6.10 の EBS をまとめてマウントして連続してインストールを行っています。
 
 ## フルスクラッチでインストールしている理由、/var/cache/yum を分ける理由
 
