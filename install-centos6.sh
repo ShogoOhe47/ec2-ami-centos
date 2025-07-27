@@ -12,11 +12,17 @@ CENTOS_VERSION=$1
 DEVICE=$2
 if [[ ${DEVICE} != /dev/xv* ]]; then
   echo "Invalid device path: ${DEVICE}"
+  exit 1
 fi
 DISK=/mnt
 BOOTUUID="1e2fe6d5-203b-4b0f-affa-1ebce0695e4b"
 
-YUM_CACHE=$3
+if [ $# -lt 3 ];then
+  YUM_CACHE='tmpfs'
+  log 'arg[3] is not specify. tmpfs is used as /var/cache/yum during installation.'
+else
+  YUM_CACHE=$3
+fi
 TMPFS_YUM_SIZE=200
 
 
@@ -84,7 +90,7 @@ mount -t proc none $DISK/proc
 
 # yum configuration for install
 log  'temp yum configuration for install'
-wget -O /tmp/RPM-GPG-KEY-CentOS-6 https://vault.centos.org/6.1/os/x86_64/RPM-GPG-KEY-CentOS-6
+wget -O /tmp/RPM-GPG-KEY-CentOS-6 https://vault.centos.org/${CENTOS_VERSION}/os/x86_64/RPM-GPG-KEY-CentOS-6
 
 cat<<EOF > /tmp/repos.conf
 [ami-base]
@@ -97,9 +103,8 @@ EOF
 
 # install packages
 log  'install core packages'
-setarch x86_64 yum -y -c /tmp/repos.conf --installroot=$DISK --disablerepo=* --enablerepo=ami-base groupinstall Core | tee -a ${LOGFILE}
-setarch x86_64 yum -y -c /tmp/repos.conf --installroot=$DISK --disablerepo=* --enablerepo=ami-base install kernel | tee -a ${LOGFILE}
-setarch x86_64 yum -y -c /tmp/repos.conf --installroot=$DISK --disablerepo=* --enablerepo=ami-base install ruby rsync grub | tee -a ${LOGFILE}
+setarch x86_64 yum -y -c /tmp/repos.conf --installroot=$DISK --disablerepo=* --enablerepo=ami-base groupinstall Core --exclude=postfix | tee -a ${LOGFILE}
+setarch x86_64 yum -y -c /tmp/repos.conf --installroot=$DISK --disablerepo=* --enablerepo=ami-base install kernel xfsprogs | tee -a ${LOGFILE}
 
 
 # grub config
@@ -113,7 +118,7 @@ timeout=0
 hiddenmenu
 title CentOS$CENTOS_VERSION
         root (hd0,0)
-        kernel /boot/vmlinuz-$(rpm --root=$DISK -q --queryformat "%{version}-%{release}.%{arch}\n" kernel) ro root=LABEL=/ console=ttyS0 xen_pv_hvm=enable
+        kernel /boot/vmlinuz-$(rpm --root=$DISK -q --queryformat "%{version}-%{release}.%{arch}\n" kernel) ro root=LABEL=/ console=tty0 console=ttyS0,115200 xen_pv_hvm=enable
         initrd /boot/initramfs-$(rpm --root=$DISK -q --queryformat "%{version}-%{release}.%{arch}\n" kernel).img
 EOF
 
@@ -167,9 +172,10 @@ echo ${CENTOS_VERSION} > $DISK/etc/yum/vars/releasever
 
 # tmp config: enable root login
 log  'enable tmp root account'
-#chroot $DISK sh -c 'echo "***" | passwd --stdin root'
+#chroot $DISK sh -c 'echo "cG1Q0JtejLKD1hS0gprEBALK2wBw3umj" | passwd --stdin root'
 
-#sed -i 's/#PermitRootLogin yes/PermitRootLogin yes/g' $DISK/etc/ssh/sshd_config
+sed -i 's/#PermitRootLogin yes/PermitRootLogin no/g' $DISK/etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' $DISK/etc/ssh/sshd_config
 sed -i 's/#UseDNS yes/UseDNS no/g' $DISK/etc/ssh/sshd_config
 
 
